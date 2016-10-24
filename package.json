@@ -1,0 +1,32 @@
+{
+  "name": "gitf",
+  "version": "0.0.1",
+  "description": "git flow tool",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PertapaCode/gitf.git"
+  },
+  "keywords": [
+    "git"
+  ],
+  "author": "Bruno Santos <brunoleugimm@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/PertapaCode/gitf/issues"
+  },
+  "homepage": "https://github.com/PertapaCode/gitf#readme",
+  "preferGlobal": true,
+  "bin": {
+    "gitf": "index.js"
+  },
+  "dependencies": {
+    "inquirer": "1.2.2",
+    "mustache": "2.2.1",
+    "semver": "5.3.0",
+    "simple-git": "1.56.0"
+  }
+}
