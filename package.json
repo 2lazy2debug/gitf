@@ -10,6 +10,10 @@
     "type": "git",
     "url": "git+https://github.com/PertapaCode/gitf.git"
   },
+  "bugs": {
+    "url": "https://github.com/PertapaCode/gitf/issues"
+  },
+  "homepage": "https://github.com/PertapaCode/gitf#readme",
   "keywords": [
     "git",
     "workflow"
