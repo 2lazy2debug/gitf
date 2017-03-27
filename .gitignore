@@ -70,6 +70,10 @@ node_modules
 ########################
 *.tgz
 
+# Test #
+########################
+test/tmp
+
 # Docs and reports #
 ######################
 docs
