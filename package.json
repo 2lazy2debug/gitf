@@ -1,42 +1,42 @@
 {
-  "name": "gitf",
-  "version": "0.0.1",
-  "description": "git flow",
-  "main": "index.js",
-  "scripts": {
-    "test": "mocha"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/PertapaCode/gitf.git"
-  },
-  "bugs": {
-    "url": "https://github.com/PertapaCode/gitf/issues"
-  },
-  "homepage": "https://github.com/PertapaCode/gitf#readme",
-  "keywords": [
-    "git",
-    "workflow"
-  ],
-  "author": "Bruno Santos <brunoleugimm@gmail.com>",
-  "license": "MIT",
-  "preferGlobal": true,
-  "bin": {
-    "gitf": "bin/index.js"
-  },
-  "dependencies": {
-    "commander": "2.9.0",
-    "semver": "5.3.0",
-    "simple-git": "1.56.0"
-  },
-  "devDependencies": {
-    "nodegit": "0.18.0",
-    "rimraf": "2.6.1",
-    "eslint": "3.12.2",
-    "eslint-config-standard": "6.2.1",
-    "eslint-plugin-promise": "3.4.0",
-    "eslint-plugin-standard": "2.0.1",
-    "mocha": "3.2.0",
-    "promisify-node": "0.4.0"
-  }
+    "name": "gitf",
+    "version": "0.1.0",
+    "description": "git flow",
+    "main": "index.js",
+    "scripts": {
+        "test": "mocha"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/PertapaCode/gitf.git"
+    },
+    "bugs": {
+        "url": "https://github.com/PertapaCode/gitf/issues"
+    },
+    "homepage": "https://github.com/PertapaCode/gitf#readme",
+    "keywords": [
+        "git",
+        "workflow"
+    ],
+    "author": "Bruno Santos <brunoleugimm@gmail.com>",
+    "license": "MIT",
+    "preferGlobal": true,
+    "bin": {
+        "gitf": "bin/index.js"
+    },
+    "dependencies": {
+        "commander": "2.9.0",
+        "semver": "5.3.0",
+        "simple-git": "1.56.0"
+    },
+    "devDependencies": {
+        "nodegit": "0.18.0",
+        "rimraf": "2.6.1",
+        "eslint": "3.12.2",
+        "eslint-config-standard": "6.2.1",
+        "eslint-plugin-promise": "3.4.0",
+        "eslint-plugin-standard": "2.0.1",
+        "mocha": "3.2.0",
+        "promisify-node": "0.4.0"
+    }
 }
