@@ -1,3 +1,6 @@
 #!/usr/bin/env node
 
-require('../index')()
+const Gitf = require('../index')
+new Gitf({
+  _commander: true
+})

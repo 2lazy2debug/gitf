@@ -6,7 +6,6 @@ const semver = require('semver')
 const exec = require('child_process').exec
 const fs = require('fs')
 
-let PACKAGE
 let git
 
 const _options = {
@@ -27,7 +26,7 @@ const _options = {
    * enable/disable commander
    * @type {Boolean}
    */
-  commander: true,
+  _commander: false,
 
   /**
    * error messages
@@ -56,14 +55,14 @@ const _options = {
       examples: [
         '$ gitf create-feature experiment'
       ],
-      validate: (name, cb) => {
+      validate: function (name, cb) {
         if (typeof name === 'string') {
           cb(undefined)
         } else {
           cb('missing name')
         }
       },
-      template: (name, cb) => {
+      template: function (name, cb) {
         cb(`git checkout -b feature-${name} develop`)
       }
     },
@@ -80,7 +79,7 @@ const _options = {
       examples: [
         '$ gitf incorporate-feature experiment'
       ],
-      validate: (name, cb) => {
+      validate: function (name, cb) {
         if (typeof name === 'string') {
           git.branch((err, resp) => {
             if (err) {
@@ -95,7 +94,7 @@ const _options = {
           cb('missing name')
         }
       },
-      template: (name, cb) => {
+      template: function (name, cb) {
         cb(
           `git checkout develop &&
           git merge feature-${name} &&
@@ -116,40 +115,40 @@ const _options = {
         '$ gitf create-release minor',
         '$ gitf create-release major'
       ],
-      validate: (level, cb) => {
+      validate: function (level, cb) {
         cb = cb || level
         cb(undefined)
       },
-      template: (level, cb) => {
+      template: function (level, cb) {
         level = ['minor', 'major'].indexOf(level) === -1 ? 'minor' : level
-        let nextReleaseVersion = semver.inc(PACKAGE.version, level) + '-rc.1'
-        let branchName = nextReleaseVersion.substr(0, nextReleaseVersion.lastIndexOf('-'))
 
-        branchName = branchName.substr(0, branchName.lastIndexOf('.'))
-        PACKAGE.version = nextReleaseVersion
-        git.checkout('develop', () => {
-          fs.writeFileSync(_options.path + '/package.json', JSON.stringify(PACKAGE, null, 4))
-          cb(
-            `git commit -a -m "bumped version number to ${nextReleaseVersion}" &&
-            git tag ${nextReleaseVersion} &&
-            git checkout -b release-${branchName} develop`
-          )
+        this.getLastVersion((version) => {
+          let nextReleaseVersion = semver.inc(version, level)
+          let branchName = nextReleaseVersion.substr(0, nextReleaseVersion.lastIndexOf('.'))
+          git.checkout('develop', () => {
+            this.setPackageVersion(nextReleaseVersion)
+            cb(
+              `git commit -a -m "bumped version number to ${nextReleaseVersion}-rc.1" &&
+              git tag ${nextReleaseVersion}-rc.1 &&
+              git checkout -b release-${branchName} develop`
+            )
+          })
         })
       }
     },
 
     /**
-     * Bump version and merge the release branch with develop and master.
+     * Bump version and merge the release branch with develop.
      */
     'finish-release': {
       command: 'finish-release',
-      description: 'Merge a finished release with develop and master',
+      description: 'Merge a finished release with develop',
       options: [],
       arguments: '<version>',
       examples: [
         '$ gitf finish-release 1.0'
       ],
-      validate: (version, cb) => {
+      validate: function (version, cb) {
         if (typeof version === 'string') {
           git.branch((err, resp) => {
             if (err) {
@@ -164,21 +163,19 @@ const _options = {
           cb('missing version')
         }
       },
-      template: (input, cb) => {
-        let level = ['minor', 'major'].indexOf(input.version) === -1 ? 'minor' : input.version
-        let nextReleaseVersion = semver.inc(PACKAGE.version, level)
-
-        PACKAGE.version = nextReleaseVersion
-        git.checkout(`release-${nextReleaseVersion.substr(0, nextReleaseVersion.lastIndexOf('.'))}`, () => {
-          fs.writeFileSync(_options.path + '/package.json', JSON.stringify(PACKAGE, null, 4))
-          cb(
-            `git commit -a -m "bumped version number to ${nextReleaseVersion}" &&
-            git tag ${nextReleaseVersion} &&
-            git checkout develop &&
-            git merge release-${nextReleaseVersion.substr(0, nextReleaseVersion.lastIndexOf('.'))} &&
-            git checkout master &&
-            git merge release-${nextReleaseVersion.substr(0, nextReleaseVersion.lastIndexOf('.'))}`
-          )
+      template: function (input, cb) {
+        this.getLastVersion(input, (version) => {
+          let nextReleaseVersion = semver.inc(version, 'patch')
+          let branchName = nextReleaseVersion.substr(0, nextReleaseVersion.lastIndexOf('.'))
+          git.checkout(`release-${branchName}`, () => {
+            this.setPackageVersion(nextReleaseVersion)
+            cb(
+              `git commit -a -m "bumped version number to ${nextReleaseVersion}" &&
+              git tag ${nextReleaseVersion} &&
+              git checkout develop &&
+              git merge release-${branchName}`
+            )
+          })
         })
       }
     },
@@ -194,7 +191,7 @@ const _options = {
       examples: [
         '$ gitf create-hotfix 1.0'
       ],
-      validate: (release, cb) => {
+      validate: function (release, cb) {
         if (typeof release === 'string') {
           git.branch((err, resp) => {
             if (err) {
@@ -209,15 +206,17 @@ const _options = {
           cb('missing release branch name')
         }
       },
-      template: (release, cb) => {
-        let patchVersion = semver.inc(release + '.0', 'patch')
-        cb(`git checkout -b hotfix-${patchVersion} release-${release}`)
+      template: function (release, cb) {
+        this.getLastVersion(release, (version) => {
+          let nextReleaseVersion = semver.inc(version, 'patch')
+          cb(`git checkout -b hotfix-${nextReleaseVersion} release-${release}`)
+        })
       }
     },
 
     /**
      * Bump version, tag commit
-     * and merge the hotfix branch with release and develop branch.
+     * and merge the hotfix branch with release branch.
      */
     'finish-hotfix': {
       command: 'finish-hotfix',
@@ -227,7 +226,7 @@ const _options = {
       examples: [
         '$ gitf finish-hotfix 1.0.1'
       ],
-      validate: (version, cb) => {
+      validate: function (version, cb) {
         if (typeof version === 'string') {
           git.branch((err, resp) => {
             if (err) {
@@ -242,18 +241,18 @@ const _options = {
           cb('missing hotfix branch name')
         }
       },
-      template: (version, cb) => {
-        PACKAGE.version = version
-        fs.writeFileSync(_options.path + '/package.json', JSON.stringify(PACKAGE, null, 4))
-        cb(
-          `git commit -a -m "bumped version number to ${version}" &&
-          git tag ${version} &&
-          git checkout release-${version.substr(0, version.lastIndexOf('.'))} &&
-          git merge hotfix-${version} &&
-          git checkout develop &&
-          git merge hotfix-${version} &&
-          git branch -d hotfix-${version}`
-        )
+      template: function (version, cb) {
+        let branchName = version.substr(0, version.lastIndexOf('.'))
+        git.checkout(`hotfix-${version}`, () => {
+          this.setPackageVersion(version)
+          cb(
+              `git commit -a -m "bumped version number to ${version}" &&
+              git tag ${version} &&
+              git checkout release-${branchName} &&
+              git merge hotfix-${version} &&
+              git branch -d hotfix-${version}`
+            )
+        })
       }
     },
 
@@ -268,14 +267,14 @@ const _options = {
       examples: [
         '$ gitf remove-path ./experiment master'
       ],
-      validate: (path, branch, cb) => {
+      validate: function (path, branch, cb) {
         if (typeof path === 'string' && typeof branch === 'string') {
           cb(undefined)
         } else {
           cb('missing path or branch')
         }
       },
-      template: (path, branch, cb) => {
+      template: function (path, branch, cb) {
         cb(
           `git checkout ${branch}
           git filter-branch --tree-filter 'rm -rf ${path}' --prune-empty HEAD &&
@@ -293,109 +292,37 @@ const _options = {
  * @param  {Function} cb
  * @return {Object}
  */
-module.exports = (options, cb) => {
-  cb = cb || function () {}
+module.exports = class {
 
-  if (_options.clearScreen) {
-    process.stdout.write('\u001b[2J\u001b[0;0H')
-  }
+  /**
+   * constructor
+   * @param  {Object}   options
+   * @param  {Function} cb
+   * @return {Object}
+   */
+  constructor (options, cb) {
+    cb = cb || function () {}
 
-  if (options) {
-    _options.commander = false
-  }
+    Object.assign(_options, options)
 
-  Object.assign(_options, options)
-
-  git = simpleGit(_options.path)
-  PACKAGE = fs.existsSync(_options.path + '/package.json') ? require(_options.path + '/package.json') : undefined
-
-  _isReady((err) => {
-    if (err) {
-      console.log(err)
-      process.exit()
-    } else if (_options.commander) {
-      _initCommander()
+    if (_options.clearScreen) {
+      process.stdout.write('\u001b[2J\u001b[0;0H')
     }
-    cb(err)
-  })
 
-  return gitf
-}
+    git = simpleGit(_options.path)
 
-/**
- * check if the directory have a git repository
- * @param  {Function} cb
- * @return {void}
- */
-function _isReady (cb) {
-  cb = cb || function () {}
-
-  git.branch((err, resp) => {
-    if (err) {
+    _isReady((err) => {
+      if (err) {
+        console.log(err)
+        process.exit()
+      } else if (_options._commander) {
+        _initCommander.bind(this)()
+      }
       cb(err)
-    } else if (!resp.branches.master) {
-      cb(_options.msg.missingMaster)
-    } else if (!resp.branches.develop) {
-      git.checkoutBranch('develop', 'master', cb)
-    } else {
-      cb(undefined)
-    }
-  })
-}
-
-/**
- * initialize commander
- * @return {void}
- */
-function _initCommander () {
-  // console.log('_initCommander')
-
-  let tmpl = _options.tmpl
-
-  for (let name in tmpl) {
-    let conf = tmpl[name]
-
-    let inst = program.command(conf.command)
-
-    inst.description(conf.description)
-
-    for (let i = 0; i < conf.options.length; i++) {
-      inst.option.apply(inst, conf.options[i])
-    }
-
-    if (conf.arguments) {
-      inst.arguments(conf.arguments)
-    }
-
-    inst.action(gitf.run.bind(this, conf.command))
-
-    let msg = '\n'
-    for (let j = 0; j < conf.examples.length; j++) {
-      msg += '    ' + conf.examples[j] + '\n'
-    }
-
-    inst.on('--help', function () {
-      console.log('  Examples:')
-      console.log(msg)
     })
+
+    return this
   }
-
-  program.on('--help', function () {
-    console.log('  Examples:')
-    console.log('')
-    console.log('    $ custom-help --help')
-    console.log('    $ custom-help -h')
-    console.log('')
-  })
-
-  program.parse(process.argv)
-}
-
-/**
- * gitf public API
- * @type {Object}
- */
-const gitf = {
 
   /**
    * run command
@@ -440,7 +367,7 @@ const gitf = {
             console.log('ERROR exec:', error)
             cb(error)
           } else {
-          // console.log('complete')
+            // console.log('complete')
             cb(undefined, stdout)
           }
         })
@@ -451,4 +378,169 @@ const gitf = {
 
     _options.tmpl[command].validate.apply(this, args)
   }
+
+  /**
+   * get version from package.json
+   * @return {string}
+   */
+  getPackageVersion () {
+    let path = _options.path + '/package.json'
+    let PACKAGE = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, 'utf8')) : undefined
+    return PACKAGE.version
+  }
+
+  /**
+   * set version in package.json
+   * @param {string} version
+   * @return {void}
+   */
+  setPackageVersion (version) {
+    let path = _options.path + '/package.json'
+    let PACKAGE = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, 'utf8')) : undefined
+    PACKAGE.version = version
+    fs.writeFileSync(path, JSON.stringify(PACKAGE, null, 4))
+  }
+
+  /**
+   * get last version
+   * @param  {string|undefined}   release
+   * @param  {Function}           cb
+   * @return {void}
+   */
+  getLastVersion (release, cb) {
+    let path = _options.path + '/package.json'
+
+    if (!cb) {
+      cb = release
+      release = undefined
+    }
+
+    git.tags((err, resp) => {
+      if (err) {
+        cb()
+      } else {
+        // get last version
+        let lastVersion
+        for (let i = 0; i < resp.all.length; i++) {
+          let version = resp.all[i]
+
+          if (version.indexOf('-rc') !== -1) {
+            version = version.substring(0, version.lastIndexOf('-'))
+          }
+
+          if (release && version.substring(0, version.lastIndexOf('.')) !== release) {
+            continue
+          }
+
+          lastVersion = lastVersion || version
+
+          if (semver.valid(version) && semver.valid(lastVersion) && semver.gt(version, lastVersion)) {
+            lastVersion = version
+          }
+        }
+
+        if (!release && !lastVersion) {
+          lastVersion = this.getPackageVersion(path)
+        }
+
+        cb(lastVersion)
+      }
+    })
+  }
+
+  /**
+   * check if version is merged with branch
+   * @param  {string}   version
+   * @param  {string|undefined}   branch
+   * @param  {Function} cb
+   * @return {void}
+   */
+  isMerged (version, branch, cb) {
+    if (!cb) {
+      cb = branch
+      branch = 'develop'
+    }
+
+    exec('git branch --merged ' + branch, function (error, stdout, stderr) {
+      if (error) {
+        cb(false)
+      } else if (stdout.indexOf('release-' + version) !== -1) {
+        cb(true)
+      } else {
+        cb(false)
+      }
+    })
+  }
+
+}
+
+/**
+ * check if the directory have a git repository
+ * @private
+ * @param  {Function} cb
+ * @return {void}
+ */
+function _isReady (cb) {
+  cb = cb || function () {}
+
+  git.branch((err, resp) => {
+    if (err) {
+      cb(err)
+    } else if (!resp.branches.master) {
+      cb(_options.msg.missingMaster)
+    } else if (!resp.branches.develop) {
+      git.checkoutBranch('develop', 'master', cb)
+    } else {
+      cb(undefined)
+    }
+  })
+}
+
+/**
+ * initialize commander
+ * @private
+ * @return {void}
+ */
+function _initCommander () {
+  // console.log('_initCommander')
+
+  let tmpl = _options.tmpl
+
+  for (let name in tmpl) {
+    let conf = tmpl[name]
+
+    let inst = program.command(conf.command)
+
+    inst.description(conf.description)
+
+    for (let i = 0; i < conf.options.length; i++) {
+      inst.option.apply(inst, conf.options[i])
+    }
+
+    if (conf.arguments) {
+      inst.arguments(conf.arguments)
+    }
+
+    inst.action(this.run.bind(this, conf.command))
+
+    let msg = '\n'
+    for (let j = 0; j < conf.examples.length; j++) {
+      msg += '    ' + conf.examples[j] + '\n'
+    }
+
+    inst.on('--help', function () {
+      console.log('  Examples:')
+      console.log(msg)
+    })
+  }
+
+  program.on('--help', function () {
+    console.log('  Examples:')
+    console.log('')
+    console.log('    $ custom-help --help')
+    console.log('    $ custom-help -h')
+    console.log('')
+  })
+
+  program.parse(process.argv)
 }

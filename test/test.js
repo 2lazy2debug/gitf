@@ -2,7 +2,7 @@
 
 'use strict'
 
-let gitf = require('../index')
+let Gitf = require('../index')
 const nodegit = require('nodegit')
 const promisify = require('promisify-node')
 const semver = require('semver')
@@ -13,7 +13,7 @@ const mkdir = promisify(fs.mkdir)
 
 const PATH = path.join(process.cwd(), '/test/tmp')
 
-let PACKAGE
+let gitf
 let repository
 let index
 
@@ -57,8 +57,7 @@ before((done) => {
     return repository.createCommit('HEAD', author, author, 'message', oid, [])
   })
   .done(() => {
-    PACKAGE = require(PATH + '/package.json')
-    gitf = gitf({ path: PATH }, done)
+    gitf = new Gitf({ path: PATH }, done)
   })
 })
 
@@ -89,31 +88,34 @@ describe('Feature', () => {
 })
 
 describe('Release', () => {
-  let nextRelVer
-
   it('should create a release branch', (done) => {
-    gitf.run('create-release', () => {
-      nextRelVer = semver.inc(PACKAGE.version, 'minor')
-      nextRelVer = 'release-' + nextRelVer.substr(0, nextRelVer.lastIndexOf('.'))
+    gitf.getLastVersion((version) => {
+      version = semver.inc(version, 'minor')
+      let branchName = version.substr(0, version.lastIndexOf('.'))
 
-      nodegit.Reference.lookup(repository, 'refs/heads/' + nextRelVer)
-      .then(() => {
-        done()
-      })
-      .catch(() => {
-        done('missing branch')
+      gitf.run('create-release', () => {
+        nodegit.Reference.lookup(repository, 'refs/heads/release-' + branchName)
+        .then(() => {
+          done()
+        })
+        .catch(() => {
+          done('missing branch')
+        })
       })
     })
   })
 
   it('should finish a release', (done) => {
-    gitf.run('finish-release', nextRelVer.replace('release-', ''), () => {
-      nodegit.Reference.lookup(repository, 'refs/heads/' + nextRelVer)
-      .then(() => {
-        done()
-      })
-      .catch(() => {
-        done('branch do not exist')
+    gitf.getLastVersion((version) => {
+      let branchName = version.substr(0, version.lastIndexOf('.'))
+      gitf.run('finish-release', branchName, () => {
+        nodegit.Reference.lookup(repository, 'refs/heads/release-' + branchName)
+        .then(() => {
+          done()
+        })
+        .catch(() => {
+          done('branch do not exist')
+        })
       })
     })
   })
@@ -122,7 +124,7 @@ describe('Release', () => {
 describe('Hotfix', () => {
   it('should create a hotfix branch', (done) => {
     gitf.run('create-hotfix', '0.2', () => {
-      nodegit.Reference.lookup(repository, 'refs/heads/hotfix-0.2.1')
+      nodegit.Reference.lookup(repository, 'refs/heads/hotfix-0.2.2')
       .then(() => {
         done()
       })
@@ -133,8 +135,8 @@ describe('Hotfix', () => {
   })
 
   it('should finish a hotfix branch', (done) => {
-    gitf.run('finish-hotfix', '0.2.1', () => {
-      nodegit.Reference.lookup(repository, 'refs/heads/hotfix-0.2.1')
+    gitf.run('finish-hotfix', '0.2.2', () => {
+      nodegit.Reference.lookup(repository, 'refs/heads/hotfix-0.2.2')
       .then(() => {
         done('branch still exist')
       })

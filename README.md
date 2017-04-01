@@ -45,16 +45,18 @@ gitf --help
 
 ### Node
 
-Inizialize **gitf** in node:
-
-
 ###### Options
 
  - `path` string
+ - `clearScreen` Boolean
  - `callback` Function
 
 ```js
-const gitf = require('gitf')({path: './'}, callback);
+const Gitf = require('gitf')
+const gitf = new Gitf({
+  path: './',
+  clearScreen: true
+}, callback)
 ```
 
 ---
@@ -118,7 +120,7 @@ gitf.run('create-release' 'minor', callback)
 
 ### Finish a release branch
 
-Bump version and merge the release branch with **develop** and **master**.
+Bump version and merge the release branch with **develop**.
 
 ```bash
 gitf finish-release 0.1
@@ -156,7 +158,7 @@ gitf.run('create-hotfix' '0.1', callback)
 
 ### Finish a hotfix branch
 
-Bump version, tag commit and merge the hotfix branch with **release** and **develop** branch.
+Bump version, tag commit and merge the hotfix branch with **release** branch.
 
 ```bash
 gitf finish-hotfix 0.1.1
@@ -224,8 +226,6 @@ git checkout -b release-*.* develop
 ```bash
 git checkout develop
 git merge release-*.*
-git checkout master
-git merge release-*.*
 ```
 
 #### Create a hotfix branch
@@ -240,8 +240,6 @@ git checkout -b hotfix-*.*.* release-*.*
 git commit -a -m "bumped version number to *.*.*"
 git tag *.*.*
 git checkout release-*
-git merge hotfix-*
-git checkout develop
 git merge hotfix-*
 git branch -d hotfix-*
 ```
